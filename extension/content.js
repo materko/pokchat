@@ -24,6 +24,8 @@
     showMale: true,
     showFemale: true,
     showUnknownGender: true,
+    ageMin: '',
+    ageMax: '',
     nameInclude: '',
     nameExclude: '',
     textInclude: '',
@@ -155,16 +157,42 @@
     return PROFILE_HREF.test(href) && txt.length > 0 && txt.length < 40;
   }
 
+  // Pokec (React, hashované triedy): každá správa má <div id="messageContent">
+  // a v hlavičke text "Ž / 37 / BB" (pohlavie / vek / skratka okresu).
+  const MSG_CONTENT_SEL = '[id="messageContent"]';
+  const META_RE = /^\s*([MŽZF?-])\s*\/\s*([\d?-]+)\s*\/\s*(.+?)\s*$/i;
+
+  // Skratky okresov (ako na ŠPZ), ktoré Pokec zobrazuje pri správach.
+  const DISTRICTS = {
+    BA: 'Bratislava', BL: 'Bratislava', BT: 'Bratislava', MA: 'Malacky', PK: 'Pezinok', SC: 'Senec',
+    TT: 'Trnava', DS: 'Dunajská Streda', GA: 'Galanta', HC: 'Hlohovec', PN: 'Piešťany', SE: 'Senica', SI: 'Skalica',
+    TN: 'Trenčín', BN: 'Bánovce nad Bebravou', IL: 'Ilava', MY: 'Myjava', NM: 'Nové Mesto nad Váhom',
+    PE: 'Partizánske', PB: 'Považská Bystrica', PD: 'Prievidza', PU: 'Púchov',
+    NR: 'Nitra', KN: 'Komárno', LV: 'Levice', NZ: 'Nové Zámky', SA: 'Šaľa', TO: 'Topoľčany', ZM: 'Zlaté Moravce',
+    ZA: 'Žilina', BY: 'Bytča', CA: 'Čadca', DK: 'Dolný Kubín', KM: 'Kysucké Nové Mesto', LM: 'Liptovský Mikuláš',
+    MT: 'Martin', NO: 'Námestovo', RK: 'Ružomberok', TR: 'Turčianske Teplice', TS: 'Tvrdošín',
+    BB: 'Banská Bystrica', BS: 'Banská Štiavnica', BR: 'Brezno', DT: 'Detva', KA: 'Krupina', LC: 'Lučenec',
+    PT: 'Poltár', RA: 'Revúca', RS: 'Rimavská Sobota', VK: 'Veľký Krtíš', ZV: 'Zvolen', ZC: 'Žarnovica',
+    ZH: 'Žiar nad Hronom',
+    PO: 'Prešov', BJ: 'Bardejov', HE: 'Humenné', KK: 'Kežmarok', LE: 'Levoča', ME: 'Medzilaborce', PP: 'Poprad',
+    SB: 'Sabinov', SK: 'Svidník', SL: 'Stará Ľubovňa', SP: 'Stropkov', SV: 'Snina', VT: 'Vranov nad Topľou',
+    KE: 'Košice', KS: 'Košice-okolie', GL: 'Gelnica', MI: 'Michalovce', RV: 'Rožňava', SO: 'Sobrance',
+    SN: 'Spišská Nová Ves', TV: 'Trebišov',
+    ZAHR: 'Zahraničie',
+  };
+
   const sigOf = (el) =>
     el.tagName + '.' + Array.from(el.classList).filter((c) => !c.startsWith('psf-')).sort().join('.');
 
   let detected = { container: null, sig: null };
 
-  // Nájde kontajner, ktorého deti sú opakujúce sa správy obsahujúce odkaz na profil.
+  // Nájde kontajner, ktorého deti sú opakujúce sa správy (s #messageContent
+  // alebo s odkazom na profil).
   function detectContainer() {
     const votes = new Map();
-    const links = Array.from(document.querySelectorAll('a[href]')).filter(isProfileLink);
-    for (const a of links) {
+    let anchors = Array.from(document.querySelectorAll(MSG_CONTENT_SEL)).filter((e) => !isOurs(e));
+    if (!anchors.length) anchors = Array.from(document.querySelectorAll('a[href]')).filter(isProfileLink);
+    for (const a of anchors) {
       let el = a;
       for (let depth = 0; el && el.parentElement && depth < 8; depth++) {
         const parent = el.parentElement;
@@ -201,7 +229,7 @@
     }
     if (!detected.container) return [];
     return Array.from(detected.container.children).filter(
-      (c) => sigOf(c) === detected.sig || c.querySelector('a[href]')
+      (c) => sigOf(c) === detected.sig || c.querySelector(MSG_CONTENT_SEL + ', a[href]')
     );
   }
 
@@ -294,7 +322,64 @@
     return '';
   }
 
+  const textSpans = (root) =>
+    Array.from(root.querySelectorAll('span')).filter((s) => !s.children.length && s.textContent.trim());
+
+  function parseMeta(s) {
+    const m = (s || '').match(META_RE);
+    if (!m) return null;
+    const age = parseInt(m[2], 10);
+    return { gender: genderFromShort(m[1]), age: isNaN(age) ? null : age, loc: m[3] };
+  }
+
+  function parsePokecMessage(el, content) {
+    const head = textSpans(el).filter((s) => !content.contains(s));
+    const metaEl = head.find((s) => META_RE.test(s.textContent));
+    const nameEl = head.find((s) => s !== metaEl && !/^[•·|\-]$/.test(s.textContent.trim()));
+    const meta = parseMeta(metaEl && metaEl.textContent) || { gender: '?', age: null, loc: '' };
+
+    // Citovaná správa pri odpovedi je <div> vedľa vlastného textu (<span>) – vynecháme ju.
+    const clone = content.cloneNode(true);
+    const wrap = clone.firstElementChild;
+    if (wrap && Array.from(wrap.children).some((c) => c.tagName !== 'DIV')) {
+      Array.from(wrap.children).forEach((c) => c.tagName === 'DIV' && c.remove());
+    }
+    let text = clone.textContent;
+    clone.querySelectorAll('img[alt]').forEach((img) => {
+      const alt = img.getAttribute('alt');
+      if (alt && alt.length < 20) text += ' ' + alt;
+    });
+
+    return {
+      name: nameEl ? nameEl.textContent.trim() : '',
+      city: meta.loc,
+      gender: meta.gender,
+      age: meta.age,
+      text: text.replace(/\s+/g, ' ').trim(),
+    };
+  }
+
+  // Zoznam "Ľudia v miestnosti" ukazuje celé mesto ("Košice - Juh"), správy len
+  // skratku okresu ("KE") – mapa nick → mesto z tohto zoznamu.
+  const userLocations = new Map();
+  let userLocScan = 0;
+  function refreshUserLocations() {
+    if (Date.now() - userLocScan < 3000) return;
+    userLocScan = Date.now();
+    for (const s of textSpans(document)) {
+      if (isOurs(s) || s.closest(MSG_CONTENT_SEL)) continue;
+      const meta = parseMeta(s.textContent);
+      if (!meta || DISTRICTS[meta.loc.toUpperCase()]) continue; // skratka = hlavička správy
+      let prev = s.previousElementSibling;
+      while (prev && /^[•·|\-]?$/.test(prev.textContent.trim())) prev = prev.previousElementSibling;
+      if (prev) userLocations.set(prev.textContent.trim(), meta.loc);
+    }
+  }
+
   function parseMessage(el) {
+    const content = !settings.sel.name && !settings.sel.city && el.querySelector(MSG_CONTENT_SEL);
+    if (content) return parsePokecMessage(el, content);
+
     const nameEl = settings.sel.name
       ? safeQuery(el, settings.sel.name)
       : Array.from(el.querySelectorAll('a[href]')).find(isProfileLink) ||
@@ -344,6 +429,8 @@
     compiled = {
       cityInc: splitList(settings.cityInclude),
       cityExc: splitList(settings.cityExclude),
+      ageMin: parseInt(settings.ageMin, 10) || 0,
+      ageMax: parseInt(settings.ageMax, 10) || 0,
       nameInc: nI.re,
       nameExc: nE.re,
       textInc: tI.re,
@@ -353,19 +440,30 @@
     return compiled;
   }
 
-  const cityMatches = (city, list) => {
-    const c = norm(city);
-    if (!c) return false;
-    return list.some((x) => c === x || c.includes(x));
-  };
+  // Všetky názvy, pod ktorými sa dá mesto správy nájsť: skratka, okres, celé mesto.
+  function cityCandidates(msg) {
+    const out = [msg.city, DISTRICTS[(msg.city || '').toUpperCase()], userLocations.get(msg.name)];
+    return out.map(norm).filter(Boolean);
+  }
+
+  // Krátke položky (skratky ako "BA") musia sedieť presne, dlhšie stačí ako podreťazec.
+  const cityMatches = (cands, list) =>
+    list.some((x) => cands.some((c) => c === x || (x.length > 3 && c.includes(x))));
 
   function passes(msg) {
     const f = compiled;
     if (msg.gender === 'M' && !settings.showMale) return false;
     if (msg.gender === 'Z' && !settings.showFemale) return false;
     if (msg.gender === '?' && !settings.showUnknownGender) return false;
-    if (f.cityInc.length && !cityMatches(msg.city, f.cityInc)) return false;
-    if (f.cityExc.length && cityMatches(msg.city, f.cityExc)) return false;
+    if (msg.age != null) {
+      if (f.ageMin && msg.age < f.ageMin) return false;
+      if (f.ageMax && msg.age > f.ageMax) return false;
+    }
+    if (f.cityInc.length || f.cityExc.length) {
+      const cands = cityCandidates(msg);
+      if (f.cityInc.length && !cityMatches(cands, f.cityInc)) return false;
+      if (f.cityExc.length && cityMatches(cands, f.cityExc)) return false;
+    }
     if (f.nameInc && !f.nameInc.test(msg.name)) return false;
     if (f.nameExc && f.nameExc.test(msg.name)) return false;
     if (f.textInc && !f.textInc.test(msg.text)) return false;
@@ -379,6 +477,7 @@
   function applyFilters() {
     if (!compiled) compileFilters();
     const msgs = getMessageElements();
+    refreshUserLocations();
     let shown = 0;
     for (const el of msgs) {
       let msg = parsedCache.get(el);
@@ -443,15 +542,35 @@
   function findOlderButton() {
     if (settings.sel.olderButton) return safeQuery(document, settings.sel.olderButton);
     const cands = document.querySelectorAll('a, button, [role="button"], [onclick], span, div');
+    let fallback = null;
     for (const el of cands) {
       if (isOurs(el)) continue;
       if (el.children.length > 2) continue;
       const t = (el.textContent || '').trim();
       if (t.length > 0 && t.length < 50 && OLDER_TEXT_RE.test(t) && el.offsetParent !== null) {
-        return el.closest('a, button, [role="button"], [onclick]') || el;
+        const btn = el.closest('a, button, [role="button"], [onclick]');
+        if (btn) return btn;
+        // Pokec: <div> s cursor:pointer, prípadne jeho rodič
+        let p = el;
+        for (let i = 0; p && i < 3; i++, p = p.parentElement) {
+          if (getComputedStyle(p).cursor === 'pointer') return p;
+        }
+        fallback = fallback || el;
+        continue;
       }
       const title = el.getAttribute && (el.getAttribute('title') || el.getAttribute('aria-label') || '');
       if (title && OLDER_TEXT_RE.test(title) && el.offsetParent !== null) return el;
+    }
+    return fallback;
+  }
+
+  // Tlačidlo sa na Pokeci objaví až po vyrolovaní hore – chvíľu naň počkáme.
+  async function waitForOlderButton(timeout = 1500) {
+    const start = Date.now();
+    while (Date.now() - start < timeout) {
+      const b = findOlderButton();
+      if (b) return b;
+      await sleep(150);
     }
     return null;
   }
@@ -512,16 +631,17 @@
       const prevHeight = scroller.scrollHeight;
       const prevTop = scroller.scrollTop;
 
-      const btn = findOlderButton();
-      if (btn) {
-        btn.click();
-      } else {
-        // fallback – posun na úplný vrch spustí natívne načítanie (infinite scroll)
+      let btn = findOlderButton();
+      if (!btn) {
+        // posun na úplný vrch spustí natívne načítanie (infinite scroll)
+        // alebo zobrazí tlačidlo "Zobraziť staršie správy"
         if (isWindowScroller(scroller)) window.scrollTo(0, 0);
         else scroller.scrollTop = 0;
         scroller.dispatchEvent(new Event('scroll', { bubbles: true }));
         window.dispatchEvent(new Event('scroll'));
+        btn = await waitForOlderButton();
       }
+      if (btn) btn.click();
 
       const grew = await waitForGrowth(before);
       // zachovanie pozície – aby obsah "neskočil"
@@ -632,6 +752,18 @@
     return h('label', { class: 'psf-check' }, cb, ' ', label);
   }
 
+  function bindNum(key) {
+    const inp = h('input', { type: 'number', min: '0', max: '120', class: 'psf-num' });
+    inp.value = settings[key];
+    inp.addEventListener('input', () => {
+      settings[key] = inp.value;
+      saveSettings();
+      compileFilters();
+      scheduleApply();
+    });
+    return inp;
+  }
+
   function buildPanel() {
     const toggle = h('button', { id: 'psf-toggle', title: 'Filter správ' }, '🔍');
     const stat = h('span', { class: 'psf-stat' });
@@ -670,10 +802,11 @@
       h(
         'fieldset',
         null,
-        h('legend', null, 'Pohlavie'),
+        h('legend', null, 'Pohlavie a vek'),
         bindCheck('showMale', 'muži'),
         bindCheck('showFemale', 'ženy'),
-        bindCheck('showUnknownGender', 'neznáme')
+        bindCheck('showUnknownGender', 'neznáme'),
+        h('div', { class: 'psf-check' }, 'Vek od ', bindNum('ageMin'), ' do ', bindNum('ageMax'))
       ),
       h(
         'fieldset',
@@ -763,7 +896,7 @@
     lines.push('');
     msgs.slice(-8).forEach((el) => {
       const m = parseMessage(el);
-      lines.push(`[${m.gender}] ${m.name} | ${m.city || '-'} | ${m.text.slice(0, 60)}`);
+      lines.push(`[${m.gender}${m.age != null ? ' ' + m.age : ''}] ${m.name} | ${cityCandidates(m).join(' / ') || '-'} | ${m.text.slice(0, 60)}`);
     });
     out.textContent = lines.join('\n');
     LOG('Diagnostika', { container: detected.container, messages: msgs, button: btn, scroller: sc });

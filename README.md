@@ -7,8 +7,12 @@ Rozšírenie prehliadača (Chrome / Edge / Firefox) a userscript pre miestnosti
 
 - **Filtrovanie správ** naživo (aj novo prichádzajúce):
   - **Mesto** – include / exclude zoznam (oddelený čiarkou alebo novým riadkom,
-    bez ohľadu na diakritiku a veľkosť písmen, napr. `kosice` = `Košice`)
-  - **Pohlavie** – muži / ženy / neznáme
+    bez ohľadu na diakritiku a veľkosť písmen, napr. `kosice` = `Košice`).
+    Pri správach Pokec ukazuje len skratku okresu (`BB`, `KE`, `Zahr`) – filter
+    ju porovnáva so skratkou, s názvom okresu aj s celým mestom zo zoznamu
+    „Ľudia v miestnosti“. Krátke položky (`BA`) musia sedieť presne, dlhšie
+    (`Košice`) stačia ako časť názvu (`Košice - Juh`).
+  - **Pohlavie** – muži / ženy / neznáme, **vek** od – do
   - **Meno** – include / exclude regulárny výraz
   - **Text** – include / exclude regulárny výraz
   - Regulárne výrazy sú case-insensitive; dá sa použiť aj zápis `/vzor/príznaky`.
@@ -34,13 +38,14 @@ Nainštaluj `pokec-sklo-filter.user.js` (vytvára sa príkazom `scripts/build-us
 
 ## Ak niečo nefunguje
 
-Štruktúru HTML skla som nemal k dispozícii, preto skript správy hľadá
-heuristicky (opakujúce sa prvky s odkazom na profil, triedy ako `mesto`,
-`city`, ikonky/atribúty s `zena`/`muz`/`female`/`male`, tlačidlo s textom
-„staršie…“).
+Pokec používa hashované CSS triedy, ktoré sa môžu pri novej verzii zmeniť.
+Skript sa preto opiera o stabilnejšie znaky: `<div id="messageContent">`
+v každej správe, text hlavičky `Ž / 37 / BB` (pohlavie / vek / okres)
+a tlačidlo „Zobraziť staršie správy“. Pre iné rozloženie má aj všeobecnú
+heuristiku (odkazy na profil, triedy ako `mesto`, `city`…).
 
 1. V paneli otvor **Pokročilé → Diagnostika** – ukáže, koľko správ našiel,
-   a ako rozparsoval posledné správy (`[pohlavie] meno | mesto | text`).
+   a ako rozparsoval posledné správy (`[pohlavie vek] meno | mesto | text`).
    Do konzoly (F12) vypíše HTML jednej správy.
 2. Ak niečo nesedí, doplň vlastné CSS selektory (správa, meno, mesto,
    pohlavie, text, tlačidlo „staršie“, rolovací kontajner).
