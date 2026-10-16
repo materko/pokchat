@@ -1,0 +1,46 @@
+.psf-hidden { display: none !important; }
+.psf-dim { opacity: 0.25 !important; filter: grayscale(1); }
+
+#psf-toggle {
+  position: fixed; right: 16px; bottom: 16px; z-index: 2147483646;
+  width: 44px; height: 44px; border-radius: 50%; border: none;
+  background: #1f6feb; color: #fff; font-size: 20px; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,.3);
+}
+#psf-panel {
+  position: fixed; right: 16px; bottom: 70px; z-index: 2147483647;
+  width: 320px; max-height: calc(100vh - 100px); overflow-y: auto;
+  background: #fff; color: #222; border: 1px solid #ccc; border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.25); padding: 10px;
+  font: 13px/1.35 system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+  text-align: left;
+}
+#psf-panel * { box-sizing: border-box; }
+#psf-panel .psf-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+#psf-panel .psf-head b { font-size: 14px; }
+#psf-panel .psf-stat { margin-left: auto; color: #666; font-variant-numeric: tabular-nums; }
+#psf-panel .psf-x { border: none; background: none; font-size: 18px; cursor: pointer; color: #666; }
+#psf-panel .psf-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+#psf-panel fieldset { border: 1px solid #ddd; border-radius: 6px; margin: 0 0 8px; padding: 4px 8px 6px; }
+#psf-panel legend { padding: 0 4px; font-weight: 600; color: #444; }
+#psf-panel .psf-field { display: block; margin: 4px 0; }
+#psf-panel .psf-field > span { display: block; font-size: 11px; color: #666; }
+#psf-panel .psf-input {
+  width: 100%; font: 12px ui-monospace, Consolas, monospace; padding: 3px 5px;
+  border: 1px solid #bbb; border-radius: 4px; background: #fff; color: #222; resize: vertical;
+}
+#psf-panel .psf-check { display: inline-flex; align-items: center; gap: 3px; margin-right: 10px; }
+#psf-panel .psf-num { width: 48px; }
+#psf-panel .psf-select { font-size: 12px; }
+#psf-panel .psf-btn {
+  margin-top: 4px; padding: 3px 8px; border: 1px solid #1f6feb; border-radius: 4px;
+  background: #eef4ff; color: #1f6feb; cursor: pointer; font-size: 12px;
+}
+#psf-panel .psf-err { color: #c62828; font-size: 11px; }
+#psf-panel .psf-status { color: #1f6feb; font-size: 12px; min-height: 1em; }
+#psf-panel .psf-hint { color: #777; font-size: 11px; margin: 4px 0; }
+#psf-panel .psf-diag {
+  white-space: pre-wrap; font-size: 11px; background: #f5f5f5; padding: 4px;
+  max-height: 200px; overflow: auto; margin: 4px 0 0;
+}
+#psf-panel summary { cursor: pointer; color: #444; font-weight: 600; margin: 4px 0; }
