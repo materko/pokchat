@@ -150,7 +150,7 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   function isOurs(el) {
-    return !!(el && el.closest && el.closest('#psf-panel, #psf-toggle'));
+    return !!(el && el.closest && el.closest('#psf-panel, #psf-toggle, #psf-editor'));
   }
 
   /* ------------------------------------------------------------------ */
@@ -731,7 +731,11 @@
     return el;
   }
 
-  function bindText(key, label, placeholder, rows = 2, isSel = false) {
+  const autoGrowers = [];
+  const plural = (n) => (n === 1 ? 'výraz' : n >= 2 && n <= 4 ? 'výrazy' : 'výrazov');
+
+  // editorTitle => pole so zoznamom výrazov: počítadlo, rast s obsahom a veľký editor (⤢)
+  function bindText(key, label, placeholder, rows = 2, isSel = false, editorTitle = null) {
     const get = () => (isSel ? settings.sel[key] : settings[key]);
     const ta = h(rows > 1 ? 'textarea' : 'input', {
       class: 'psf-input',
@@ -741,6 +745,16 @@
     });
     ta.value = get() || '';
     const err = h('div', { class: 'psf-err' });
+    const count = h('span', { class: 'psf-count' });
+    const autoGrow = () => {
+      if (rows < 2 || !ta.offsetParent) return;
+      ta.style.height = 'auto';
+      ta.style.height = ta.scrollHeight + 2 + 'px';
+    };
+    const updateCount = () => {
+      const n = ta.value.split('\n').filter((l) => l.trim()).length;
+      count.textContent = n ? ` · ${n} ${plural(n)}` : '';
+    };
     ta.addEventListener('input', () => {
       if (isSel) {
         settings.sel[key] = ta.value.trim();
@@ -749,10 +763,62 @@
       saveSettings();
       const c = compileFilters();
       err.textContent = (c.errors[key] && 'Chybný regulárny výraz: ' + c.errors[key]) || '';
+      updateCount();
+      autoGrow();
       scheduleApply();
     });
     ui['err_' + key] = err;
-    return h('label', { class: 'psf-field' }, h('span', null, label), ta, err);
+    if (!editorTitle) return h('label', { class: 'psf-field' }, h('span', null, label), ta, err);
+
+    autoGrowers.push(autoGrow);
+    updateCount();
+    const expand = h(
+      'button',
+      { class: 'psf-expand', title: 'Otvoriť vo veľkom editore', onclick: () => openEditor(editorTitle, ta, err) },
+      '⤢'
+    );
+    return h('div', { class: 'psf-field' }, h('div', { class: 'psf-field-head' }, h('span', null, label, count), expand), ta, err);
+  }
+
+  // Veľký editor pre dlhé zoznamy výrazov; zmeny sa hneď prenášajú do panela.
+  function openEditor(title, ta, err) {
+    const big = h('textarea', { class: 'psf-input psf-big', spellcheck: 'false', placeholder: ta.placeholder });
+    big.value = ta.value;
+    const bigErr = h('div', { class: 'psf-err' }, err.textContent);
+    const close = () => {
+      overlay.remove();
+      document.removeEventListener('keydown', onKey, true);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        close();
+      }
+    };
+    big.addEventListener('input', () => {
+      ta.value = big.value;
+      ta.dispatchEvent(new Event('input'));
+      bigErr.textContent = err.textContent;
+    });
+    // aby stránka nezachytávala písanie (napr. presun fokusu do chatu)
+    big.addEventListener('keydown', (e) => e.stopPropagation());
+    const overlay = h(
+      'div',
+      { id: 'psf-editor' },
+      h(
+        'div',
+        { class: 'psf-editor-box' },
+        h('div', { class: 'psf-head' }, h('b', null, title), h('button', { class: 'psf-x', title: 'Zavrieť', onclick: close }, '×')),
+        h('div', { class: 'psf-hint' }, 'Každý riadok = jeden výraz. Diakritika a veľké/malé písmená sa ignorujú. Zmeny sa uplatňujú hneď.'),
+        big,
+        bigErr,
+        h('div', null, h('button', { class: 'psf-btn', onclick: close }, 'Hotovo'))
+      )
+    );
+    overlay.addEventListener('click', (e) => e.target === overlay && close());
+    document.addEventListener('keydown', onKey, true);
+    document.body.append(overlay);
+    big.focus();
   }
 
   function bindCheck(key, label) {
@@ -834,15 +900,15 @@
         null,
         h('legend', null, 'Meno (regulárne výrazy)'),
         h('div', { class: 'psf-hint' }, 'Každý riadok = jeden výraz. Diakritika a veľké/malé písmená sa ignorujú.'),
-        bindText('nameInclude', 'Include (stačí jeden riadok)', '^janko$\n^marienka', 2),
-        bindText('nameExclude', 'Exclude (skryje, ak sedí ktorýkoľvek)', 'bot\nspam\\d+', 2)
+        bindText('nameInclude', 'Include (stačí jeden riadok)', '^janko$\n^marienka', 2, false, 'Meno – include'),
+        bindText('nameExclude', 'Exclude (skryje, ak sedí ktorýkoľvek)', 'bot\nspam\\d+', 2, false, 'Meno – exclude')
       ),
       h(
         'fieldset',
         null,
         h('legend', null, 'Text správy (regulárne výrazy)'),
-        bindText('textInclude', 'Include (stačí jeden riadok)', 'ahoj\nkto (je|ide)', 3),
-        bindText('textExclude', 'Exclude (skryje, ak sedí ktorýkoľvek)', 'https?://\nreklama\nfoto v albume', 3)
+        bindText('textInclude', 'Include (stačí jeden riadok)', 'ahoj\nkto (je|ide)', 3, false, 'Text správy – include'),
+        bindText('textExclude', 'Exclude (skryje, ak sedí ktorýkoľvek)', 'https?://\nreklama\nfoto v albume', 3, false, 'Text správy – exclude')
       ),
       h(
         'fieldset',
@@ -884,6 +950,7 @@
     settings.panelOpen = open;
     saveSettings();
     if (ui.panel) ui.panel.style.display = open ? '' : 'none';
+    if (open) autoGrowers.forEach((f) => f());
   }
 
   function updateStats() {

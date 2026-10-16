@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         Pokec Sklo Filter
 // @namespace    https://github.com/materko/pokchat
-// @version      0.3.0
+// @version      0.4.0
 // @description  Filter správ na pokec skle podľa mesta, pohlavia, mena a textu + načítanie starších správ
 // @match        https://pokec-sklo.azet.sk/miestnost/*
 // @match        http://pokec-sklo.azet.sk/miestnost/*
 // @grant        none
 // @run-at       document-idle
 // ==/UserScript==
-(function(){var s=document.createElement("style");s.textContent=".psf-hidden { display: none !important; }\n.psf-dim { opacity: 0.25 !important; filter: grayscale(1); }\n\n#psf-toggle {\n  position: fixed; right: 16px; bottom: 16px; z-index: 2147483646;\n  width: 44px; height: 44px; border-radius: 50%; border: none;\n  background: #1f6feb; color: #fff; font-size: 20px; cursor: pointer;\n  box-shadow: 0 2px 8px rgba(0,0,0,.3);\n}\n#psf-panel {\n  position: fixed; right: 16px; bottom: 70px; z-index: 2147483647;\n  width: 320px; max-height: calc(100vh - 100px); overflow-y: auto;\n  background: #fff; color: #222; border: 1px solid #ccc; border-radius: 8px;\n  box-shadow: 0 4px 16px rgba(0,0,0,.25); padding: 10px;\n  font: 13px/1.35 system-ui, -apple-system, Segoe UI, Arial, sans-serif;\n  text-align: left;\n}\n#psf-panel * { box-sizing: border-box; }\n#psf-panel .psf-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }\n#psf-panel .psf-head b { font-size: 14px; }\n#psf-panel .psf-stat { margin-left: auto; color: #666; font-variant-numeric: tabular-nums; }\n#psf-panel .psf-x { border: none; background: none; font-size: 18px; cursor: pointer; color: #666; }\n#psf-panel .psf-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }\n#psf-panel fieldset { border: 1px solid #ddd; border-radius: 6px; margin: 0 0 8px; padding: 4px 8px 6px; }\n#psf-panel legend { padding: 0 4px; font-weight: 600; color: #444; }\n#psf-panel .psf-field { display: block; margin: 4px 0; }\n#psf-panel .psf-field > span { display: block; font-size: 11px; color: #666; }\n#psf-panel .psf-input {\n  width: 100%; font: 12px ui-monospace, Consolas, monospace; padding: 3px 5px;\n  border: 1px solid #bbb; border-radius: 4px; background: #fff; color: #222; resize: vertical;\n}\n#psf-panel .psf-check { display: inline-flex; align-items: center; gap: 3px; margin-right: 10px; }\n#psf-panel .psf-num { width: 48px; }\n#psf-panel .psf-select { font-size: 12px; }\n#psf-panel .psf-btn {\n  margin-top: 4px; padding: 3px 8px; border: 1px solid #1f6feb; border-radius: 4px;\n  background: #eef4ff; color: #1f6feb; cursor: pointer; font-size: 12px;\n}\n#psf-panel .psf-err { color: #c62828; font-size: 11px; }\n#psf-panel .psf-status { color: #1f6feb; font-size: 12px; min-height: 1em; }\n#psf-panel .psf-hint { color: #777; font-size: 11px; margin: 4px 0; }\n#psf-panel .psf-diag {\n  white-space: pre-wrap; font-size: 11px; background: #f5f5f5; padding: 4px;\n  max-height: 200px; overflow: auto; margin: 4px 0 0;\n}\n#psf-panel summary { cursor: pointer; color: #444; font-weight: 600; margin: 4px 0; }\n";document.head.appendChild(s);})();
+(function(){var s=document.createElement("style");s.textContent=".psf-hidden { display: none !important; }\n.psf-dim { opacity: 0.25 !important; filter: grayscale(1); }\n\n#psf-toggle {\n  position: fixed; right: 16px; bottom: 16px; z-index: 2147483646;\n  width: 44px; height: 44px; border-radius: 50%; border: none;\n  background: #1f6feb; color: #fff; font-size: 20px; cursor: pointer;\n  box-shadow: 0 2px 8px rgba(0,0,0,.3);\n}\n#psf-panel {\n  position: fixed; right: 16px; bottom: 70px; z-index: 2147483647;\n  width: 320px; max-height: calc(100vh - 100px); overflow-y: auto;\n  background: #fff; color: #222; border: 1px solid #ccc; border-radius: 8px;\n  box-shadow: 0 4px 16px rgba(0,0,0,.25); padding: 10px;\n  font: 13px/1.35 system-ui, -apple-system, Segoe UI, Arial, sans-serif;\n  text-align: left;\n}\n#psf-panel * { box-sizing: border-box; }\n#psf-panel .psf-head, #psf-editor .psf-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }\n#psf-panel .psf-head b, #psf-editor .psf-head b { font-size: 14px; }\n#psf-panel .psf-stat { margin-left: auto; color: #666; font-variant-numeric: tabular-nums; }\n#psf-panel .psf-x, #psf-editor .psf-x { margin-left: auto; }\n#psf-panel .psf-stat + .psf-x { margin-left: 0; }\n#psf-panel .psf-x, #psf-editor .psf-x { border: none; background: none; font-size: 18px; cursor: pointer; color: #666; }\n#psf-panel .psf-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }\n#psf-panel fieldset { border: 1px solid #ddd; border-radius: 6px; margin: 0 0 8px; padding: 4px 8px 6px; }\n#psf-panel legend { padding: 0 4px; font-weight: 600; color: #444; }\n#psf-panel .psf-field { display: block; margin: 4px 0; }\n#psf-panel .psf-field > span { display: block; font-size: 11px; color: #666; }\n#psf-panel .psf-input, #psf-editor .psf-input {\n  width: 100%; font: 12px ui-monospace, Consolas, monospace; padding: 3px 5px;\n  border: 1px solid #bbb; border-radius: 4px; background: #fff; color: #222; resize: vertical;\n}\n#psf-panel .psf-check { display: inline-flex; align-items: center; gap: 3px; margin-right: 10px; }\n#psf-panel .psf-num { width: 48px; }\n#psf-panel .psf-select { font-size: 12px; }\n#psf-panel .psf-btn, #psf-editor .psf-btn {\n  margin-top: 4px; padding: 3px 8px; border: 1px solid #1f6feb; border-radius: 4px;\n  background: #eef4ff; color: #1f6feb; cursor: pointer; font-size: 12px;\n}\n#psf-panel .psf-err, #psf-editor .psf-err { color: #c62828; font-size: 11px; }\n#psf-panel .psf-status { color: #1f6feb; font-size: 12px; min-height: 1em; }\n#psf-panel .psf-hint, #psf-editor .psf-hint { color: #777; font-size: 11px; margin: 4px 0; }\n#psf-panel .psf-diag {\n  white-space: pre-wrap; font-size: 11px; background: #f5f5f5; padding: 4px;\n  max-height: 200px; overflow: auto; margin: 4px 0 0;\n}\n#psf-panel summary { cursor: pointer; color: #444; font-weight: 600; margin: 4px 0; }\n#psf-panel textarea.psf-input { max-height: 220px; overflow-y: auto; }\n#psf-panel .psf-field-head { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #666; }\n#psf-panel .psf-count { color: #999; }\n#psf-panel .psf-expand {\n  border: none; background: none; cursor: pointer; color: #1f6feb; font-size: 15px; line-height: 1; padding: 0 2px;\n}\n#psf-editor {\n  position: fixed; inset: 0; z-index: 2147483647; background: rgba(0,0,0,.35);\n  display: flex; align-items: center; justify-content: center;\n  font: 13px/1.35 system-ui, -apple-system, Segoe UI, Arial, sans-serif; text-align: left;\n}\n#psf-editor * { box-sizing: border-box; }\n#psf-editor .psf-editor-box {\n  display: flex; flex-direction: column; gap: 6px; width: min(720px, 94vw); height: min(80vh, 720px);\n  background: #fff; color: #222; border-radius: 8px; padding: 12px; box-shadow: 0 8px 32px rgba(0,0,0,.35);\n}\n#psf-editor .psf-big { flex: 1; resize: none; font-size: 14px; line-height: 1.5; padding: 6px 8px; }\n";document.head.appendChild(s);})();
 /*
  * Pokec Sklo Filter
  * Filtrovanie správ v miestnostiach na https://pokec-sklo.azet.sk/miestnost/
@@ -161,7 +161,7 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   function isOurs(el) {
-    return !!(el && el.closest && el.closest('#psf-panel, #psf-toggle'));
+    return !!(el && el.closest && el.closest('#psf-panel, #psf-toggle, #psf-editor'));
   }
 
   /* ------------------------------------------------------------------ */
@@ -742,7 +742,11 @@
     return el;
   }
 
-  function bindText(key, label, placeholder, rows = 2, isSel = false) {
+  const autoGrowers = [];
+  const plural = (n) => (n === 1 ? 'výraz' : n >= 2 && n <= 4 ? 'výrazy' : 'výrazov');
+
+  // editorTitle => pole so zoznamom výrazov: počítadlo, rast s obsahom a veľký editor (⤢)
+  function bindText(key, label, placeholder, rows = 2, isSel = false, editorTitle = null) {
     const get = () => (isSel ? settings.sel[key] : settings[key]);
     const ta = h(rows > 1 ? 'textarea' : 'input', {
       class: 'psf-input',
@@ -752,6 +756,16 @@
     });
     ta.value = get() || '';
     const err = h('div', { class: 'psf-err' });
+    const count = h('span', { class: 'psf-count' });
+    const autoGrow = () => {
+      if (rows < 2 || !ta.offsetParent) return;
+      ta.style.height = 'auto';
+      ta.style.height = ta.scrollHeight + 2 + 'px';
+    };
+    const updateCount = () => {
+      const n = ta.value.split('\n').filter((l) => l.trim()).length;
+      count.textContent = n ? ` · ${n} ${plural(n)}` : '';
+    };
     ta.addEventListener('input', () => {
       if (isSel) {
         settings.sel[key] = ta.value.trim();
@@ -760,10 +774,62 @@
       saveSettings();
       const c = compileFilters();
       err.textContent = (c.errors[key] && 'Chybný regulárny výraz: ' + c.errors[key]) || '';
+      updateCount();
+      autoGrow();
       scheduleApply();
     });
     ui['err_' + key] = err;
-    return h('label', { class: 'psf-field' }, h('span', null, label), ta, err);
+    if (!editorTitle) return h('label', { class: 'psf-field' }, h('span', null, label), ta, err);
+
+    autoGrowers.push(autoGrow);
+    updateCount();
+    const expand = h(
+      'button',
+      { class: 'psf-expand', title: 'Otvoriť vo veľkom editore', onclick: () => openEditor(editorTitle, ta, err) },
+      '⤢'
+    );
+    return h('div', { class: 'psf-field' }, h('div', { class: 'psf-field-head' }, h('span', null, label, count), expand), ta, err);
+  }
+
+  // Veľký editor pre dlhé zoznamy výrazov; zmeny sa hneď prenášajú do panela.
+  function openEditor(title, ta, err) {
+    const big = h('textarea', { class: 'psf-input psf-big', spellcheck: 'false', placeholder: ta.placeholder });
+    big.value = ta.value;
+    const bigErr = h('div', { class: 'psf-err' }, err.textContent);
+    const close = () => {
+      overlay.remove();
+      document.removeEventListener('keydown', onKey, true);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        close();
+      }
+    };
+    big.addEventListener('input', () => {
+      ta.value = big.value;
+      ta.dispatchEvent(new Event('input'));
+      bigErr.textContent = err.textContent;
+    });
+    // aby stránka nezachytávala písanie (napr. presun fokusu do chatu)
+    big.addEventListener('keydown', (e) => e.stopPropagation());
+    const overlay = h(
+      'div',
+      { id: 'psf-editor' },
+      h(
+        'div',
+        { class: 'psf-editor-box' },
+        h('div', { class: 'psf-head' }, h('b', null, title), h('button', { class: 'psf-x', title: 'Zavrieť', onclick: close }, '×')),
+        h('div', { class: 'psf-hint' }, 'Každý riadok = jeden výraz. Diakritika a veľké/malé písmená sa ignorujú. Zmeny sa uplatňujú hneď.'),
+        big,
+        bigErr,
+        h('div', null, h('button', { class: 'psf-btn', onclick: close }, 'Hotovo'))
+      )
+    );
+    overlay.addEventListener('click', (e) => e.target === overlay && close());
+    document.addEventListener('keydown', onKey, true);
+    document.body.append(overlay);
+    big.focus();
   }
 
   function bindCheck(key, label) {
@@ -845,15 +911,15 @@
         null,
         h('legend', null, 'Meno (regulárne výrazy)'),
         h('div', { class: 'psf-hint' }, 'Každý riadok = jeden výraz. Diakritika a veľké/malé písmená sa ignorujú.'),
-        bindText('nameInclude', 'Include (stačí jeden riadok)', '^janko$\n^marienka', 2),
-        bindText('nameExclude', 'Exclude (skryje, ak sedí ktorýkoľvek)', 'bot\nspam\\d+', 2)
+        bindText('nameInclude', 'Include (stačí jeden riadok)', '^janko$\n^marienka', 2, false, 'Meno – include'),
+        bindText('nameExclude', 'Exclude (skryje, ak sedí ktorýkoľvek)', 'bot\nspam\\d+', 2, false, 'Meno – exclude')
       ),
       h(
         'fieldset',
         null,
         h('legend', null, 'Text správy (regulárne výrazy)'),
-        bindText('textInclude', 'Include (stačí jeden riadok)', 'ahoj\nkto (je|ide)', 3),
-        bindText('textExclude', 'Exclude (skryje, ak sedí ktorýkoľvek)', 'https?://\nreklama\nfoto v albume', 3)
+        bindText('textInclude', 'Include (stačí jeden riadok)', 'ahoj\nkto (je|ide)', 3, false, 'Text správy – include'),
+        bindText('textExclude', 'Exclude (skryje, ak sedí ktorýkoľvek)', 'https?://\nreklama\nfoto v albume', 3, false, 'Text správy – exclude')
       ),
       h(
         'fieldset',
@@ -895,6 +961,7 @@
     settings.panelOpen = open;
     saveSettings();
     if (ui.panel) ui.panel.style.display = open ? '' : 'none';
+    if (open) autoGrowers.forEach((f) => f());
   }
 
   function updateStats() {
