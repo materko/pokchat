@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Pokec Sklo Filter",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Filter správ na pokec skle podľa mesta, pohlavia, mena a textu + automatické načítanie starších správ.",
   "permissions": ["storage"],
   "content_scripts": [

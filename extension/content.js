@@ -105,19 +105,29 @@
       .map(norm)
       .filter(Boolean);
 
-  function compileRegex(src) {
-    src = (src || '').trim();
-    if (!src) return { re: null, error: null };
-    // Podpora zápisu /vzor/príznaky
-    const m = src.match(/^\/(.*)\/([a-z]*)$/s);
-    try {
-      return {
-        re: m ? new RegExp(m[1], m[2].includes('i') ? m[2] : m[2] + 'i') : new RegExp(src, 'i'),
-        error: null,
-      };
-    } catch (e) {
-      return { re: null, error: e.message };
-    }
+  // Odstráni diakritiku, veľkosť písmen ponechá (kvôli \S, \D… v regexoch).
+  const stripDia = (s) => (s || '').toString().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+  // Každý riadok je samostatný regulárny výraz; vždy bez ohľadu na veľkosť
+  // písmen a diakritiku (porovnáva sa s textom bez diakritiky).
+  function compileRegexList(src) {
+    const res = [];
+    const errors = [];
+    const lines = (src || '').split('\n');
+    lines.forEach((line, i) => {
+      line = line.trim();
+      if (!line) return;
+      // Podpora zápisu /vzor/príznaky
+      const m = line.match(/^\/(.*)\/([a-z]*)$/);
+      const body = stripDia(m ? m[1] : line);
+      const flags = 'i' + (m ? m[2].replace(/[igy]/g, '') : '');
+      try {
+        res.push(new RegExp(body, flags));
+      } catch (e) {
+        errors.push((lines.length > 1 ? `riadok ${i + 1}: ` : '') + e.message);
+      }
+    });
+    return { res, error: errors.length ? errors.join('; ') : null };
   }
 
   const safeQuery = (root, sel) => {
@@ -422,19 +432,19 @@
   let compiled = null;
 
   function compileFilters() {
-    const nI = compileRegex(settings.nameInclude);
-    const nE = compileRegex(settings.nameExclude);
-    const tI = compileRegex(settings.textInclude);
-    const tE = compileRegex(settings.textExclude);
+    const nI = compileRegexList(settings.nameInclude);
+    const nE = compileRegexList(settings.nameExclude);
+    const tI = compileRegexList(settings.textInclude);
+    const tE = compileRegexList(settings.textExclude);
     compiled = {
       cityInc: splitList(settings.cityInclude),
       cityExc: splitList(settings.cityExclude),
       ageMin: parseInt(settings.ageMin, 10) || 0,
       ageMax: parseInt(settings.ageMax, 10) || 0,
-      nameInc: nI.re,
-      nameExc: nE.re,
-      textInc: tI.re,
-      textExc: tE.re,
+      nameInc: nI.res,
+      nameExc: nE.res,
+      textInc: tI.res,
+      textExc: tE.res,
       errors: { nameInclude: nI.error, nameExclude: nE.error, textInclude: tI.error, textExclude: tE.error },
     };
     return compiled;
@@ -464,10 +474,12 @@
       if (f.cityInc.length && !cityMatches(cands, f.cityInc)) return false;
       if (f.cityExc.length && cityMatches(cands, f.cityExc)) return false;
     }
-    if (f.nameInc && !f.nameInc.test(msg.name)) return false;
-    if (f.nameExc && f.nameExc.test(msg.name)) return false;
-    if (f.textInc && !f.textInc.test(msg.text)) return false;
-    if (f.textExc && f.textExc.test(msg.text)) return false;
+    // include: aspoň jeden riadok musí sedieť; exclude: nesmie sedieť žiadny
+    const any = (list, s) => list.some((re) => re.test(s));
+    if (f.nameInc.length && !any(f.nameInc, msg.nameN)) return false;
+    if (f.nameExc.length && any(f.nameExc, msg.nameN)) return false;
+    if (f.textInc.length && !any(f.textInc, msg.textN)) return false;
+    if (f.textExc.length && any(f.textExc, msg.textN)) return false;
     return true;
   }
 
@@ -486,6 +498,8 @@
       if (!msg || msg._sig !== sig) {
         msg = parseMessage(el);
         msg._sig = sig;
+        msg.nameN = stripDia(msg.name);
+        msg.textN = stripDia(msg.text);
         parsedCache.set(el, msg);
         el.setAttribute('data-psf-gender', msg.gender);
         if (msg.city) el.setAttribute('data-psf-city', msg.city);
@@ -818,16 +832,17 @@
       h(
         'fieldset',
         null,
-        h('legend', null, 'Meno (regulárny výraz)'),
-        bindText('nameInclude', 'Include', '^(janko|marienka)$', 1),
-        bindText('nameExclude', 'Exclude', 'bot|spam\\d+', 1)
+        h('legend', null, 'Meno (regulárne výrazy)'),
+        h('div', { class: 'psf-hint' }, 'Každý riadok = jeden výraz. Diakritika a veľké/malé písmená sa ignorujú.'),
+        bindText('nameInclude', 'Include (stačí jeden riadok)', '^janko$\n^marienka', 2),
+        bindText('nameExclude', 'Exclude (skryje, ak sedí ktorýkoľvek)', 'bot\nspam\\d+', 2)
       ),
       h(
         'fieldset',
         null,
-        h('legend', null, 'Text správy (regulárny výraz)'),
-        bindText('textInclude', 'Include', 'ahoj|kto (je|ide)', 1),
-        bindText('textExclude', 'Exclude', 'https?://|reklama', 1)
+        h('legend', null, 'Text správy (regulárne výrazy)'),
+        bindText('textInclude', 'Include (stačí jeden riadok)', 'ahoj\nkto (je|ide)', 3),
+        bindText('textExclude', 'Exclude (skryje, ak sedí ktorýkoľvek)', 'https?://\nreklama\nfoto v albume', 3)
       ),
       h(
         'fieldset',

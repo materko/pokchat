@@ -8,7 +8,7 @@ OUT=pokec-sklo-filter.user.js
 // ==UserScript==
 // @name         Pokec Sklo Filter
 // @namespace    https://github.com/materko/pokchat
-// @version      0.2.0
+// @version      0.3.0
 // @description  Filter správ na pokec skle podľa mesta, pohlavia, mena a textu + načítanie starších správ
 // @match        https://pokec-sklo.azet.sk/miestnost/*
 // @match        http://pokec-sklo.azet.sk/miestnost/*

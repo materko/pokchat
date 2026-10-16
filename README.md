@@ -13,9 +13,12 @@ Rozšírenie prehliadača (Chrome / Edge / Firefox) a userscript pre miestnosti
     „Ľudia v miestnosti“. Krátke položky (`BA`) musia sedieť presne, dlhšie
     (`Košice`) stačia ako časť názvu (`Košice - Juh`).
   - **Pohlavie** – muži / ženy / neznáme, **vek** od – do
-  - **Meno** – include / exclude regulárny výraz
-  - **Text** – include / exclude regulárny výraz
-  - Regulárne výrazy sú case-insensitive; dá sa použiť aj zápis `/vzor/príznaky`.
+  - **Meno** – include / exclude regulárne výrazy
+  - **Text** – include / exclude regulárne výrazy
+  - Každý riadok je samostatný výraz. **Include**: správa sa zobrazí, ak sedí
+    aspoň jeden riadok. **Exclude**: správa sa skryje, ak sedí ktorýkoľvek riadok.
+  - Diakritika a veľké/malé písmená sa ignorujú (`zena` nájde aj „Žena“).
+    Dá sa použiť aj zápis `/vzor/príznaky`.
   - Nevyhovujúce správy sa dajú **skryť** alebo len **zošednúť**.
 - **Staršie správy** – hneď po otvorení miestnosti načíta 5 starších strán
   (nastaviteľné), pri rolovaní hore dočítava ďalšie. Keď filter skryje väčšinu
