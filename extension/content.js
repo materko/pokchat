@@ -742,15 +742,55 @@
     initialDone = true;
   }
 
+  // Ochrana pred chybou Pokecu: pri každej udalosti scroll na vrchu pošle
+  // požiadavku na staršie správy, aj keď predošlá ešte nedobehla. Druhá vráti
+  // len duplikáty, Pokec si nastaví hasArchive=false a načítavanie natrvalo
+  // vypne. Kým požiadavka beží, ďalšie takéto udalosti k nemu nepustíme.
+  let pokecLoadUntil = 0;
+  let pokecLoadFirst = null;
+  function installPokecScrollGuard() {
+    window.addEventListener(
+      'scroll',
+      (e) => {
+        const t = e.target;
+        if (!t || t.id !== 'scrollContainer' || t.scrollTop !== 0) return;
+        const first = getMessageElements()[0];
+        if (Date.now() < pokecLoadUntil && first === pokecLoadFirst) {
+          e.stopImmediatePropagation();
+          return;
+        }
+        pokecLoadUntil = Date.now() + 4000;
+        pokecLoadFirst = first;
+      },
+      true
+    );
+  }
+
   let scrollAttachedTo = null;
   function attachScrollListener() {
     const scroller = findScroller();
     if (scrollAttachedTo === scroller) return;
     if (scrollAttachedTo) {
-      (isWindowScroller(scrollAttachedTo) ? window : scrollAttachedTo).removeEventListener('scroll', onScroll);
+      const old = isWindowScroller(scrollAttachedTo) ? window : scrollAttachedTo;
+      old.removeEventListener('scroll', onScroll);
+      old.removeEventListener('wheel', onWheel);
     }
     scrollAttachedTo = scroller;
-    (isWindowScroller(scroller) ? window : scroller).addEventListener('scroll', onScroll, { passive: true });
+    const target = isWindowScroller(scroller) ? window : scroller;
+    target.addEventListener('scroll', onScroll, { passive: true });
+    target.addEventListener('wheel', onWheel, { passive: true });
+  }
+
+  // Na úplnom vrchu koliesko nevyvolá scroll (pozícia sa nemení) – napr. keď
+  // filter skryl všetky práve načítané správy. Dočítame ďalšie sami.
+  function onWheel(e) {
+    if (e.deltaY >= 0 || !settings.autoLoadOnScroll || loading) return;
+    const s = scrollAttachedTo;
+    const top = isWindowScroller(s) ? window.scrollY : s.scrollTop;
+    if (top > 0 || Date.now() - lastAutoLoad < 1500) return;
+    lastAutoLoad = Date.now();
+    noMoreOlder = false;
+    loadOlderOnce();
   }
 
   let lastAutoLoad = 0;
@@ -1061,6 +1101,7 @@
   async function main() {
     settings = await loadSettings();
     buildPanel();
+    installPokecScrollGuard();
 
     const observer = new MutationObserver((muts) => {
       for (const m of muts) {
