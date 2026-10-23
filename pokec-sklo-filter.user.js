@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Pokec Sklo Filter
 // @namespace    https://github.com/materko/pokchat
-// @version      0.4.1
+// @version      0.4.2
 // @description  Filter správ na pokec skle podľa mesta, pohlavia, mena a textu + načítanie starších správ
 // @match        https://pokec-sklo.azet.sk/miestnost/*
 // @match        http://pokec-sklo.azet.sk/miestnost/*
@@ -684,16 +684,22 @@
       const prevHeight = scroller.scrollHeight;
       const prevTop = isWindowScroller(scroller) ? window.scrollY : scroller.scrollTop;
 
+      let grew = false;
       let btn = findOlderButton();
-      if (!btn) {
-        // posun na úplný vrch spustí natívne načítanie (infinite scroll)
-        // alebo zobrazí tlačidlo "Zobraziť staršie správy"
-        triggerTopScroll(scroller);
-        btn = await waitForOlderButton(prevFirst, before);
+      // Keď sme už na vrchu (napr. filter skryl správy a prehliadač posunul
+      // scrollTop na 0), Pokec už možno načítava sám – súbežná druhá požiadavka
+      // by mu načítavanie vypla. Najprv chvíľu počkáme na jeho výsledok.
+      if (!btn && prevTop === 0) grew = await waitForGrowth(prevFirst, before, 2000);
+      if (!grew) {
+        if (!btn) {
+          // posun na úplný vrch spustí natívne načítanie (infinite scroll)
+          // alebo zobrazí tlačidlo "Zobraziť staršie správy"
+          triggerTopScroll(scroller);
+          btn = await waitForOlderButton(prevFirst, before);
+        }
+        if (btn) btn.click();
+        grew = await waitForGrowth(prevFirst, before);
       }
-      if (btn) btn.click();
-
-      const grew = await waitForGrowth(prevFirst, before);
       // zachovanie pozície – aby obsah "neskočil"
       const delta = scroller.scrollHeight - prevHeight;
       if (grew && delta > 0) {
