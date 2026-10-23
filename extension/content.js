@@ -71,12 +71,31 @@
     });
   }
 
+  // Po znovunačítaní rozšírenia beží v otvorených kartách stará kópia skriptu,
+  // ktorá už nemá prístup k chrome.* ("Extension context invalidated").
+  function extensionAlive() {
+    try {
+      return !!(chrome.runtime && chrome.runtime.id);
+    } catch (e) {
+      return false;
+    }
+  }
+
   let saveTimer = null;
   function saveSettings() {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       if (hasChromeStorage) {
-        chrome.storage.local.set({ [STORAGE_KEY]: settings });
+        if (!extensionAlive()) {
+          setStatus('Rozšírenie bolo aktualizované – obnov stránku (F5), nastavenia sa teraz neuložia.');
+          return;
+        }
+        try {
+          const p = chrome.storage.local.set({ [STORAGE_KEY]: settings });
+          if (p && p.catch) p.catch((e) => LOG('Uloženie nastavení zlyhalo:', e));
+        } catch (e) {
+          LOG('Uloženie nastavení zlyhalo:', e);
+        }
       } else {
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
