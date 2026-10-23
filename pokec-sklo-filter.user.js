@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Pokec Sklo Filter
 // @namespace    https://github.com/materko/pokchat
-// @version      0.4.0
+// @version      0.4.1
 // @description  Filter správ na pokec skle podľa mesta, pohlavia, mena a textu + načítanie starších správ
 // @match        https://pokec-sklo.azet.sk/miestnost/*
 // @match        http://pokec-sklo.azet.sk/miestnost/*
@@ -566,6 +566,8 @@
 
   function findOlderButton() {
     if (settings.sel.olderButton) return safeQuery(document, settings.sel.olderButton);
+    const pokecBtn = document.querySelector('[data-test-type="showOlderMessages"]');
+    if (pokecBtn) return pokecBtn;
     const cands = document.querySelectorAll('a, button, [role="button"], [onclick], span, div');
     let fallback = null;
     for (const el of cands) {
@@ -589,15 +591,40 @@
     return fallback;
   }
 
-  // Tlačidlo sa na Pokeci objaví až po vyrolovaní hore – chvíľu naň počkáme.
-  async function waitForOlderButton(timeout = 1500) {
+  // Pribudli staršie správy? Nové živé správy pribúdajú dole, preto sa
+  // pozeráme, či sa pred pôvodne prvú správu niečo vložilo.
+  function olderArrived(prevFirst, prevCount) {
+    const els = getMessageElements();
+    if (prevFirst && prevFirst.isConnected) return els.indexOf(prevFirst) > 0;
+    return els.length > prevCount;
+  }
+
+  // Tlačidlo sa na Pokeci objaví až po vyrolovaní hore – chvíľu naň počkáme
+  // (v režime nekonečného rolovania sa neobjaví, správy rovno pribudnú).
+  async function waitForOlderButton(prevFirst, prevCount, timeout = 1500) {
     const start = Date.now();
     while (Date.now() - start < timeout) {
       const b = findOlderButton();
       if (b) return b;
+      if (olderArrived(prevFirst, prevCount)) return null;
       await sleep(150);
     }
     return null;
+  }
+
+  // Vyvolá práve JEDNU udalosť scroll na vrchu. Pokec na každú pošle požiadavku
+  // na staršie správy; druhá súbežná vráti len duplikáty a Pokec si potom
+  // nastaví hasArchive=false – ďalšie načítavanie sa natrvalo vypne.
+  function triggerTopScroll(scroller) {
+    if (isWindowScroller(scroller)) {
+      if (window.scrollY > 0) window.scrollTo(0, 0);
+      else window.dispatchEvent(new Event('scroll'));
+    } else if (scroller.scrollTop > 0) {
+      scroller.scrollTop = 0;
+    } else {
+      // obsah je po odfiltrovaní nižší ako okno – rolovať sa nedá
+      scroller.dispatchEvent(new Event('scroll'));
+    }
   }
 
   function isScrollable(el) {
@@ -623,12 +650,11 @@
 
   const isWindowScroller = (s) => s === document.scrollingElement || s === document.documentElement || s === document.body;
 
-  function waitForGrowth(prevCount, timeout = 5000) {
+  function waitForGrowth(prevFirst, prevCount, timeout = 5000) {
     return new Promise((resolve) => {
       const start = Date.now();
       const tick = () => {
-        const n = getMessageElements().length;
-        if (n > prevCount) {
+        if (olderArrived(prevFirst, prevCount)) {
           // počkáme ešte chvíľu, kým dobehne celá dávka
           setTimeout(() => resolve(true), 300);
         } else if (Date.now() - start > timeout) {
@@ -652,23 +678,22 @@
     setStatus('Načítavam staršie správy…');
     try {
       const scroller = findScroller();
-      const before = getMessageElements().length;
+      const els = getMessageElements();
+      const prevFirst = els[0];
+      const before = els.length;
       const prevHeight = scroller.scrollHeight;
-      const prevTop = scroller.scrollTop;
+      const prevTop = isWindowScroller(scroller) ? window.scrollY : scroller.scrollTop;
 
       let btn = findOlderButton();
       if (!btn) {
         // posun na úplný vrch spustí natívne načítanie (infinite scroll)
         // alebo zobrazí tlačidlo "Zobraziť staršie správy"
-        if (isWindowScroller(scroller)) window.scrollTo(0, 0);
-        else scroller.scrollTop = 0;
-        scroller.dispatchEvent(new Event('scroll', { bubbles: true }));
-        window.dispatchEvent(new Event('scroll'));
-        btn = await waitForOlderButton();
+        triggerTopScroll(scroller);
+        btn = await waitForOlderButton(prevFirst, before);
       }
       if (btn) btn.click();
 
-      const grew = await waitForGrowth(before);
+      const grew = await waitForGrowth(prevFirst, before);
       // zachovanie pozície – aby obsah "neskočil"
       const delta = scroller.scrollHeight - prevHeight;
       if (grew && delta > 0) {
@@ -719,11 +744,22 @@
     if (!settings.autoLoadOnScroll || loading) return;
     const s = scrollAttachedTo;
     const top = isWindowScroller(s) ? window.scrollY : s.scrollTop;
-    if (top < 150 && Date.now() - lastAutoLoad > 1500) {
-      lastAutoLoad = Date.now();
-      noMoreOlder = false;
-      loadOlderOnce();
+    if (top >= 150 || Date.now() - lastAutoLoad < 1500) return;
+    // Na úplnom vrchu Pokec v režime nekonečného rolovania načíta sám – druhá
+    // požiadavka od nás by mu načítavanie vypla. Zasiahneme len kvôli tlačidlu.
+    if (top === 0) {
+      setTimeout(() => {
+        const btn = !loading && findOlderButton();
+        if (btn) {
+          lastAutoLoad = Date.now();
+          btn.click();
+        }
+      }, 200);
+      return;
     }
+    lastAutoLoad = Date.now();
+    noMoreOlder = false;
+    loadOlderOnce();
   }
 
   /* ------------------------------------------------------------------ */
